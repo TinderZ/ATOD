@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pip show *)",
+      "Bash(conda list *)",
+      "Bash(python3 -c \"import gymnasium; print\\(gymnasium.__version__\\)\")",
+      "Bash(python3 -c \"import gym; print\\(gym.__version__\\)\")",
+      "WebSearch"
+    ]
+  }
+}
