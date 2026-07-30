@@ -141,7 +141,16 @@ bash examples/search/retriever/retrieval_launch.sh > retrieval_server.log
 
 ### Training
 
-All ATOD scripts live under `examples/atod_trainer/` and assume the repo root as working directory. Each script sets the student model, the GRPO-trained teacher, the annealing schedule (`κ`, `ρ`, `T`), and the T-DUR parameters. Before running, edit `student_model_path` / `teacher_model_path` in the script to point to your local checkpoints.
+**Step 1. Train the teacher (GRPO).** Scripts live under `examples/grpo_teacher_trainer/` ({alfworld, search, webshop} × {4B, 30B-A3B}) and assume the repo root as working directory. Edit the model path in the script to point to your local checkpoint.
+
+```bash
+# Teacher training — {alfworld, search, webshop} × {4b, 30ba3b}
+bash examples/grpo_teacher_trainer/run_alfworld_grpo_qwen3_4b.sh
+bash examples/grpo_teacher_trainer/run_search_grpo_qwen3_30ba3b.sh
+bash examples/grpo_teacher_trainer/run_webshop_grpo_qwen3_4b.sh
+```
+
+**Step 2. Train the student with ATOD.** Scripts live under `examples/atod_trainer/`. Each script sets the student model, the GRPO-trained teacher (point `teacher_model_path` to the teacher trained in Step 1), the annealing schedule (`κ`, `ρ`, `T`), and the T-DUR parameters.
 
 ```bash
 # ATOD (ours) — {alfworld, search, webshop} × {0.6b, 1.7b, 4b}
