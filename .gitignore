@@ -132,3 +132,13 @@ data/
 .tmp
 *ports
 
+# bundled environment packages: keep their source tracked, since the generic
+# rules above (e.g. ENV/, data/) would otherwise drop required ALFWorld files
+!agent_system/environments/env_package/
+!agent_system/environments/env_package/**
+
+# ...but never commit locally built artifacts of those packages
+agent_system/environments/env_package/webshop/webshop/data/
+agent_system/environments/env_package/webshop/webshop/**/chromedriver
+agent_system/environments/env_package/alfworld/alfworld/detectors/
+
