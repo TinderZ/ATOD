@@ -23,6 +23,62 @@ ATOD achieves substantial improvements over OPD, SOD, TCOD, SDAR, and GRPO basel
   <img src="docs/atod/compare_table.png" alt="Results" style="width:90%;">
 </div>
 
+## 🤗 Model Checkpoints
+
+All six GRPO-trained **teacher** checkpoints used by ATOD are released in a single Hugging Face repo: [**TanQT24/ATOD_ckpt**](https://huggingface.co/TanQT24/ATOD_ckpt). Each subfolder is a standard `transformers` / vLLM-loadable model directory (`actor_hf/`).
+
+| Environment | Teacher | Subfolder in the repo |
+|---|---|---|
+| ALFWorld | Qwen3-4B (GRPO) | `alfworld_grpo_qwen3_4b/actor_hf` |
+| ALFWorld | Qwen3-30B-A3B (GRPO) | `alfworld_grpo_qwen3_30ba3b/actor_hf` |
+| WebShop | Qwen3-4B (GRPO) | `webshop_grpo_qwen3_4b/actor_hf` |
+| WebShop | Qwen3-30B-A3B (GRPO) | `webshop_grpo_qwen3_30ba3b/actor_hf` |
+| Search-QA | Qwen3-4B (GRPO) | `search_grpo_qwen3_4b/actor_hf` |
+| Search-QA | Qwen3-30B-A3B (GRPO) | `search_grpo_qwen3_30ba3b/actor_hf` |
+
+### Download
+
+Download a single teacher (recommended — the 30B-A3B checkpoints are large):
+
+```bash
+pip install -U "huggingface_hub[cli]"
+
+# e.g. the ALFWorld Qwen3-4B teacher
+hf download TanQT24/ATOD_ckpt \
+  --include "alfworld_grpo_qwen3_4b/*" \
+  --local-dir ~/ckpts/ATOD_ckpt
+```
+
+Or download the whole repo:
+
+```bash
+hf download TanQT24/ATOD_ckpt --local-dir ~/ckpts/ATOD_ckpt
+```
+
+Python API:
+
+```python
+from huggingface_hub import snapshot_download
+
+path = snapshot_download(
+    repo_id="TanQT24/ATOD_ckpt",
+    allow_patterns=["search_grpo_qwen3_4b/*"],
+    local_dir="~/ckpts/ATOD_ckpt",
+)
+```
+
+### Use in training scripts
+
+Point `teacher_model_path` in `examples/atod_trainer/*.sh` at the downloaded `actor_hf` directory, e.g.
+
+```bash
+# examples/atod_trainer/run_alfworld_atod_qwen3_1.7b.sh
+student_model_path=Qwen/Qwen3-1.7B
+teacher_model_path=~/ckpts/ATOD_ckpt/alfworld_grpo_qwen3_4b/actor_hf
+```
+
+With these released teachers you can skip **Step 1 (teacher GRPO training)** below and run ATOD distillation directly.
+
 ## 🛠️ Installation
 
 
