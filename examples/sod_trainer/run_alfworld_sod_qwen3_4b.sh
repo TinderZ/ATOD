@@ -24,7 +24,7 @@ opd_only=false
 
 # Model paths
 # Student: vanilla Qwen3-4B
-# Teacher: Qwen3-30B-A3B fine-tuned with GRPO on alfworld (global_step_200 of grpo_qwen3_30ba3b run, merged to HF format)
+# Teacher: GRPO version of Qwen3-30B-A3B on alfworld (merged to HF format)
 student_model_path=Qwen3-4B
 teacher_model_path=Qwen3-30B-A3B-GRPO
 
@@ -34,7 +34,7 @@ teacher_model_path=Qwen3-30B-A3B-GRPO
 train_data_size=16
 val_data_size=128
 group_size=8
-experiment_name="sod_alfworld_qwen3_4b_teacher_grpo30ba3b_step150_${sod_mode}_coef${opd_coef}_delta${delta}"
+experiment_name="sod_alfworld_qwen3_4b_teacher_grpo30ba3b_${sod_mode}_coef${opd_coef}_delta${delta}"
 export ALFWORLD_DATA=$HOME/data/alfworld
 
 export WANDB_API_KEY="${WANDB_API_KEY:-your_wandb_api_key_here}"

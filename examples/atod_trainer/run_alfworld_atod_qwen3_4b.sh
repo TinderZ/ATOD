@@ -50,6 +50,8 @@ curriculum_min_weight=0.05
 curriculum_max_weight=1.0
 
 # Model paths
+# Student: vanilla Qwen3-4B
+# Teacher: GRPO version of Qwen3-30B-A3B on alfworld (merged to HF format)
 student_model_path=Qwen3-4B
 teacher_model_path=Qwen3-30B-A3B-GRPO
 
@@ -59,7 +61,7 @@ teacher_model_path=Qwen3-30B-A3B-GRPO
 train_data_size=16
 val_data_size=128
 group_size=8
-experiment_name="ATOD_alfworld_qwen3_4b_teacher_grpo30ba3b_step150_klInit${kl_coef}to${kl_coef_min}_rlInit${rl_coef}to${rl_coef_max}_T${coef_anneal_steps}_tip"
+experiment_name="ATOD_alfworld_qwen3_4b_teacher_grpo30ba3b_klInit${kl_coef}to${kl_coef_min}_rlInit${rl_coef}to${rl_coef_max}_T${coef_anneal_steps}_tip"
 export ALFWORLD_DATA=$HOME/data/alfworld
 
 export WANDB_API_KEY="${WANDB_API_KEY:-your_wandb_api_key_here}"

@@ -33,7 +33,7 @@ teacher_model_path=Qwen3-30B-A3B-GRPO
 train_data_size=16
 val_data_size=128
 group_size=8
-experiment_name="tcod_f2b_alfworld_qwen3_4b_teacher_grpo30ba3b_step150_ckpt${checkpoint_steps}"
+experiment_name="tcod_f2b_alfworld_qwen3_4b_teacher_grpo30ba3b_ckpt${checkpoint_steps}"
 export ALFWORLD_DATA=$HOME/data/alfworld
 
 export WANDB_API_KEY="${WANDB_API_KEY:-your_wandb_api_key_here}"

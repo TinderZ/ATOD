@@ -67,11 +67,11 @@ opd_only=false
 
 # Model paths
 # Student: vanilla Qwen3-0.6B
-# Teacher: Qwen3-4B fine-tuned with GRPO on search (global_step_150 of grpo_qwen3_4b run, merged to HF format)
+# Teacher: GRPO version of Qwen3-4B on search (merged to HF format)
 student_model_path=Qwen3-0.6B
 teacher_model_path=Qwen3-4B-GRPO
 
-experiment_name="sod_search_qwen3_0.6b_teacher_grpo4b_step300_${sod_mode}_coef${opd_coef}_delta${delta}"
+experiment_name="sod_search_qwen3_0.6b_teacher_grpo4b_${sod_mode}_coef${opd_coef}_delta${delta}"
 
 train_data_size=128
 val_data_size=512

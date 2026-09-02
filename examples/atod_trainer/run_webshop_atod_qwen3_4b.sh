@@ -41,14 +41,14 @@ curriculum_max_weight=1.0
 
 # Model paths
 # Student: vanilla Qwen3-4B
-# Teacher: Qwen3-30B-A3B fine-tuned with GRPO on webshop (global_step_200 of grpo_qwen3_30ba3b run, merged to HF format)
+# Teacher: GRPO version of Qwen3-30B-A3B on webshop (merged to HF format)
 student_model_path=Qwen3-4B
 teacher_model_path=Qwen3-30B-A3B-GRPO
 
 train_data_size=16
 val_data_size=128
 group_size=8
-experiment_name="atod_anneal_nocurr_webshop_qwen3_4b_teacher_grpo30ba3b_step150_klInit${kl_coef}to${kl_coef_min}_rlInit${rl_coef}to${rl_coef_max}_T${coef_anneal_steps}_tip"
+experiment_name="atod_anneal_nocurr_webshop_qwen3_4b_teacher_grpo30ba3b_klInit${kl_coef}to${kl_coef_min}_rlInit${rl_coef}to${rl_coef_max}_T${coef_anneal_steps}_tip"
 export WANDB_API_KEY="${WANDB_API_KEY:-your_wandb_api_key_here}"
 
 python3 -m examples.data_preprocess.prepare \

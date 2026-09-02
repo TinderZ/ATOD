@@ -21,14 +21,14 @@ opd_only=false
 
 # Model paths
 # Student: vanilla Qwen3-0.6B
-# Teacher: Qwen3-4B fine-tuned with GRPO on webshop (global_step_150 of grpo_qwen3_4b run)
+# Teacher: GRPO version of Qwen3-4B on webshop
 student_model_path=Qwen3-0.6B
 teacher_model_path=Qwen3-4B-GRPO
 
 train_data_size=16
 val_data_size=128
 group_size=8
-experiment_name="sod_webshop_qwen3_0.6b_teacher_grpo4b_step300_coef${opd_coef}_delta${delta}"
+experiment_name="sod_webshop_qwen3_0.6b_teacher_grpo4b_coef${opd_coef}_delta${delta}"
 export WANDB_API_KEY="${WANDB_API_KEY:-your_wandb_api_key_here}"
 
 python3 -m examples.data_preprocess.prepare \

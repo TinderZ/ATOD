@@ -95,11 +95,11 @@ curriculum_max_weight=1.0
 
 # Model paths
 # Student: vanilla Qwen3-0.6B
-# Teacher: Qwen3-4B fine-tuned with GRPO on search (global_step_150 of grpo_qwen3_4b run)
+# Teacher: GRPO version of Qwen3-4B on search
 student_model_path=Qwen3-0.6B
 teacher_model_path=Qwen3-4B-GRPO
 
-experiment_name="atod_anneal_nocurr_search_qwen3_0.6b_teacher_grpo4b_step300_klInit${kl_coef}to${kl_coef_min}_rlInit${rl_coef}to${rl_coef_max}_T${coef_anneal_steps}_tip"
+experiment_name="atod_anneal_nocurr_search_qwen3_0.6b_teacher_grpo4b_klInit${kl_coef}to${kl_coef_min}_rlInit${rl_coef}to${rl_coef_max}_T${coef_anneal_steps}_tip"
 
 train_data_size=128
 val_data_size=512

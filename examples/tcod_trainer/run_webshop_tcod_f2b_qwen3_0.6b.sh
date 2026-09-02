@@ -8,7 +8,7 @@ num_cpus_per_env_worker=0.1
 
 # =====================================================
 # TCOD-f2b (Forward-to-Backward) Configuration
-# (with GRPO-4B step150 teacher instead of base Qwen3-4B)
+# (with GRPO-4B teacher instead of base Qwen3-4B)
 # =====================================================
 # Curriculum: student starts with 1 step, expands by 1 every checkpoint_steps.
 #   distill_window = 1 + (global_step // checkpoint_steps)
@@ -25,7 +25,7 @@ opd_only=true
 
 # Model paths
 # Student: vanilla Qwen3-0.6B
-# Teacher: Qwen3-4B fine-tuned with GRPO on webshop (global_step_150 of grpo_qwen3_4b run)
+# Teacher: GRPO version of Qwen3-4B on webshop
 student_model_path=Qwen3-0.6B
 teacher_model_path=Qwen3-4B-GRPO
 
@@ -35,7 +35,7 @@ teacher_model_path=Qwen3-4B-GRPO
 train_data_size=16
 val_data_size=128
 group_size=8
-experiment_name="tcod_f2b_webshop_qwen3_0.6b_teacher_grpo4b_step300_ckpt${checkpoint_steps}"
+experiment_name="tcod_f2b_webshop_qwen3_0.6b_teacher_grpo4b_ckpt${checkpoint_steps}"
 export WANDB_API_KEY="${WANDB_API_KEY:-your_wandb_api_key_here}"
 
 python3 -m examples.data_preprocess.prepare \

@@ -71,11 +71,11 @@ opd_only=true         # pure OPD, no GRPO
 
 # Model paths
 # Student: vanilla Qwen3-4B
-# Teacher: Qwen3-30B-A3B fine-tuned with GRPO on search (global_step_200 of grpo_qwen3_30ba3b run, merged to HF format)
+# Teacher: GRPO version of Qwen3-30B-A3B on search (merged to HF format)
 student_model_path=Qwen3-4B
 teacher_model_path=Qwen3-30B-A3B-GRPO
 
-experiment_name="tcod_f2b_search_qwen3_4b_teacher_grpo30ba3b_step150_ckpt${checkpoint_steps}"
+experiment_name="tcod_f2b_search_qwen3_4b_teacher_grpo30ba3b_ckpt${checkpoint_steps}"
 
 train_data_size=128
 val_data_size=512
