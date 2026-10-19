@@ -1,10 +1,14 @@
+# Activate a compatible environment before using the benchmark scripts.
+# Required: ATOD_STUDENT_MODEL_PATH, ATOD_TEACHER_MODEL_PATH,
+# ATOD_PROJECT_ROOT, ATOD_BENCHMARK_DIR, ATOD_RAY_IPC_DIR.
+# The launcher derives ATOD_PROJECT_ROOT and the GPU count automatically.
 defaults:
   - ppo_trainer
   - _self_
 
 hydra:
   searchpath:
-    - file:///mnt/data/home/zzr/ATOD/verl/trainer/config
+    - file://${oc.env:ATOD_PROJECT_ROOT}/verl/trainer/config
   run:
     dir: ${oc.env:ATOD_BENCHMARK_DIR}/hydra
 
@@ -28,7 +32,7 @@ data:
 
 actor_rollout_ref:
   model:
-    path: /mnt/data/share/models/Qwen3-0.6B
+    path: ${oc.env:ATOD_STUDENT_MODEL_PATH}
     use_remove_padding: true
     enable_gradient_checkpointing: true
   actor:
@@ -71,7 +75,7 @@ actor_rollout_ref:
     n: 1
   ref:
     model:
-      path: /mnt/data/home/zzr/models/Qwen3-32B
+      path: ${oc.env:ATOD_TEACHER_MODEL_PATH}
     log_prob_micro_batch_size_per_gpu: 1
     log_prob_use_dynamic_bsz: false
     fsdp_config:
@@ -101,8 +105,8 @@ env:
 trainer:
   logger: [console]
   project_name: atod_vanilla_opd_timing
-  experiment_name: qwen3_32b_to_0p6b_thinking_4096_2ppu_10updates
-  n_gpus_per_node: 2
+  experiment_name: ${oc.env:ATOD_EXPERIMENT_NAME,vanilla_opd_timing}
+  n_gpus_per_node: ${oc.decode:${oc.env:ATOD_BENCHMARK_NUM_GPUS,2}}
   nnodes: 1
   total_training_steps: 10
   total_epochs: 10
@@ -117,8 +121,8 @@ trainer:
 
 ray_init:
   num_cpus: 16
-  num_gpus: 2
+  num_gpus: ${trainer.n_gpus_per_node}
   include_dashboard: false
   object_store_memory: 2147483648
-  _temp_dir: ${oc.env:ATOD_RAY_IPC_DIR,/dev/shm/zzr_opd_pending}
+  _temp_dir: ${oc.env:ATOD_RAY_IPC_DIR}
   _node_ip_address: 127.0.0.1

@@ -53,11 +53,11 @@ class LocalAlfworld:
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--prepare-only", action="store_true")
-    p.add_argument("--model", type=Path, default=Path("/mnt/data/home/zzr/models/ATOD_ckpt/alfworld_grpo_qwen3_4b/actor_hf"))
+    p.add_argument("--model", type=Path, required=True, help="Local model directory")
     p.add_argument("--model-repo")
     p.add_argument("--model-revision")
     p.add_argument("--policy-label")
-    p.add_argument("--game", type=Path, default=Path(os.environ["ALFWORLD_DATA"]) / "json_2.1.1/train/pick_and_place_simple-ToiletPaper-None-ToiletPaperHanger-417/trial_T20190908_185320_708158/game.tw-pddl")
+    p.add_argument("--game", type=Path, required=True, help="Path to a training game.tw-pddl file under ALFWORLD_DATA")
     p.add_argument("--output-dir", type=Path, required=True)
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--max-steps", type=int, default=12)
@@ -65,6 +65,8 @@ def main():
     p.add_argument("--max-input-tokens", type=int, default=2048)
     p.add_argument("--enable-thinking", choices=["true", "false"], default="false")
     args = p.parse_args()
+    if not os.environ.get("ALFWORLD_DATA"):
+        p.error("Set ALFWORLD_DATA to the dataset root")
     assert 0 < args.max_steps <= 12 and 0 < args.max_new_tokens <= 1024
     assert 0 < args.max_input_tokens <= 2048
     args.output_dir.mkdir(parents=True, exist_ok=True)
@@ -84,7 +86,6 @@ def main():
     local = LocalAlfworld(game)
     manager = AlfWorldEnvironmentManager(local, alfworld_projection, OmegaConf.create({"env": {"history_length": 2}}))
     tokenizer = AutoTokenizer.from_pretrained(args.model, local_files_only=True)
-    is_atod_teacher = args.model.resolve() == Path("/mnt/data/home/zzr/models/ATOD_ckpt/alfworld_grpo_qwen3_4b/actor_hf").resolve()
     started = time.monotonic()
     trajectory = []
     config = {
@@ -96,10 +97,10 @@ def main():
         "environment": sys.prefix, "python": sys.version,
         "packages": {n: importlib.metadata.version(n) for n in ["torch", "transformers", "textworld", "alfworld"]},
         "game": str(game), "game_sha256": hashlib.sha256(game.read_bytes()).hexdigest(),
-        "split": "train", "policy": args.policy_label or ("qwen3_4b_grpo_teacher" if is_atod_teacher else "external_teacher"),
+        "split": "train", "policy": args.policy_label or "external_teacher",
         "model": str(args.model.resolve()),
-        "model_repo": args.model_repo or ("TanQT24/ATOD_ckpt" if is_atod_teacher else None),
-        "teacher_revision": args.model_revision or ("fd6a12024f8eed189757dc9d770994b051f2fe27" if is_atod_teacher else None),
+        "model_repo": args.model_repo,
+        "teacher_revision": args.model_revision,
         "seed": args.seed, "max_steps": args.max_steps, "max_new_tokens": args.max_new_tokens,
         "max_input_tokens": args.max_input_tokens, "history_length": 2,
         "do_sample": False, "dtype": "bfloat16", "attention": "eager",

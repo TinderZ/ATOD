@@ -31,6 +31,9 @@ def main():
     records = rows(run / 'metrics.jsonl')
     updates = [r for r in records if 'timing_s/step' in r['metrics']]
     samples = rows(run / 'ppu_samples.jsonl')
+    if not samples:
+        samples = rows(run / 'device_samples.jsonl')
+    device_ids = sorted({device['physical_device'] for sample in samples for device in sample.get('devices', [])})
     events = rows(run / 'phase_events.jsonl')
     phases = sorted({e['phase'] for e in events})
     phase_summary = {}
@@ -41,7 +44,7 @@ def main():
             peak_sampled_mib={str(d): max((device['memory_used_mib']
                 for sample in samples if any(e['started'] <= sample['wall_time'] <= e['finished'] for e in selected)
                 for device in sample.get('devices', []) if device['physical_device'] == d), default=None)
-                for d in (0, 1)})
+                for d in device_ids})
     flattened = [dict(step=r['step'], **r['metrics']) for r in updates]
     if flattened:
         with (run / 'update_metrics.csv').open('w', newline='') as out:
@@ -80,14 +83,15 @@ def main():
         steady_step_seconds_excluding_checkpoint=measured_update,
         recent_3_step_seconds_excluding_checkpoint=recent_update,
         peak_sampled_mib={str(d): max((device['memory_used_mib'] for sample in samples
-            for device in sample.get('devices', []) if device['physical_device'] == d), default=None) for d in (0, 1)},
-        same_batch_2card_estimate_hours={str(n): measured_update['mean'] * n / 3600
+            for device in sample.get('devices', []) if device['physical_device'] == d), default=None) for d in device_ids},
+        same_batch_same_devices_estimate_hours={str(n): measured_update['mean'] * n / 3600
             for n in (100, 500, 1000, 2000)} if measured_update else {},
-        same_batch_2card_recent_estimate_hours={str(n): recent_update['mean'] * n / 3600
+        same_batch_same_devices_recent_estimate_hours={str(n): recent_update['mean'] * n / 3600
             for n in (100, 500, 1000, 2000)} if recent_update else {},
         estimate_caution='These are conditional projections at the measured output lengths, not upper bounds. Outputs grew throughout this run.',
         estimates_exclude_initialization_validation_and_checkpoint=True,
         device_sample_period_seconds=5,
+        sampled_device_ids=device_ids,
     )
     for name in ('initialization', 'entry_status'):
         if (run / (name + '.json')).exists():
@@ -125,7 +129,7 @@ def main():
         for ax in axes:
             ax.grid(axis='y', alpha=.2)
             ax.set_axisbelow(True)
-        fig.suptitle('Qwen3-32B teacher to Qwen3-0.6B student | 2 PPU-ZW810E\nVanilla OPD, thinking=True, full tags, 4096 tokens/turn', fontsize=12)
+        fig.suptitle('Vanilla OPD timing | ' + run.name, fontsize=12)
         fig.tight_layout(rect=(0, 0, 1, .94))
         fig.savefig(run / 'timing_curves.png', dpi=160)
         fig.savefig(run / 'timing_curves.svg')

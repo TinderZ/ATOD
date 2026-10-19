@@ -19,18 +19,18 @@ os.environ["OMP_NUM_THREADS"] = "1"
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from textworld import EnvInfos
-from textworld.envs.pddl.pddl import PddlEnv
-from agent_system.environments.env_package.alfworld.alfworld.agents.environment.alfred_tw_env import AlfredDemangler, AlfredInfos
-from agent_system.environments.env_package.alfworld.envs import compute_reward
-
-
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--game", type=Path, default=Path(os.environ["ALFWORLD_DATA"]) / "json_2.1.1/train/pick_and_place_simple-ToiletPaper-None-ToiletPaperHanger-417/trial_T20190908_185320_708158/game.tw-pddl")
+    parser.add_argument("--game", type=Path, required=True, help="Path to a training game.tw-pddl file under ALFWORLD_DATA")
     parser.add_argument("--output-dir", type=Path)
     parser.add_argument("--seed", type=int, default=0)
     args = parser.parse_args()
+    if not os.environ.get("ALFWORLD_DATA"):
+        parser.error("Set ALFWORLD_DATA to the dataset root")
+    from textworld import EnvInfos
+    from textworld.envs.pddl.pddl import PddlEnv
+    from agent_system.environments.env_package.alfworld.alfworld.agents.environment.alfred_tw_env import AlfredDemangler, AlfredInfos
+    from agent_system.environments.env_package.alfworld.envs import compute_reward
     if args.output_dir is None:
         stamp = datetime.now(ZoneInfo("Asia/Shanghai")).strftime("%Y%m%d_%H%M%S_%f")
         args.output_dir = ROOT / "outputs" / f"{stamp}_alfworld_cpu_walkthrough_seed{args.seed}"

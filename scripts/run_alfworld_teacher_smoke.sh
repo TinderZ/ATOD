@@ -1,52 +1,58 @@
 #!/usr/bin/env bash
-# Single-GPU experiment: launch only after approving its resource plan.
+# Activate a compatible environment and approve resources before launching.
 set -euo pipefail
-enable_thinking="${1:-false}"
-case "$enable_thinking" in
-  true|false) ;;
-  *) printf 'Expected true or false for enable_thinking\n' >&2; exit 2 ;;
-esac
-model_preset="${3:-atod-4b}"
-model_args=()
-case "$model_preset" in
-  atod-4b) model_slug=qwen3_4b ;;
-  qwen3-32b)
-    model_slug=qwen3_32b
-    model_args=(--model /mnt/data/home/zzr/models/Qwen3-32B
-      --model-repo Qwen/Qwen3-32B
-      --model-revision 9216db5781bf21249d130ec9da846c4624c16137
-      --policy-label qwen3_32b_official_teacher)
-    ;;
-  *) printf 'Expected atod-4b or qwen3-32b for model preset\n' >&2; exit 2 ;;
-esac
-max_new_tokens="${2:-512}"
-case "$max_new_tokens" in
-  512|1024) ;;
-  *) printf 'Expected 512 or 1024 for max_new_tokens\n' >&2; exit 2 ;;
-esac
-cd /mnt/data/home/zzr/ATOD
-source scripts/activate_atod.sh atod
-export CUDA_VISIBLE_DEVICES=2
+if [[ "${1:-}" == --help ]]; then
+  cat <<'USAGE'
+Usage: CUDA_VISIBLE_DEVICES=<one index> ALFWORLD_DATA=<dataset root> \
+  bash scripts/run_alfworld_teacher_smoke.sh [true|false] [512|1024] \
+  --model <local model dir> --game <training game.tw-pddl> [episode options]
+
+Uses the active Python environment. Pass --model-repo, --model-revision and
+--policy-label to record model provenance. ATOD_OUTPUT_ROOT controls outputs;
+ATOD_RUN_TIMEOUT defaults to 20m. Optional ATOD_DEVICE_SMI names a monitor
+executable on PATH (or its absolute path); no platform SDK path is assumed.
+USAGE
+  exit 0
+fi
+enable_thinking=false
+if [[ "${1:-}" == true || "${1:-}" == false ]]; then enable_thinking="$1"; shift; fi
+max_new_tokens=512
+if [[ "${1:-}" =~ ^[0-9]+$ ]]; then max_new_tokens="$1"; shift; fi
+case "$enable_thinking" in true|false) ;; *) printf 'Expected true or false\n' >&2; exit 2 ;; esac
+case "$max_new_tokens" in 512|1024) ;; *) printf 'Expected 512 or 1024 tokens\n' >&2; exit 2 ;; esac
+: "${CUDA_VISIBLE_DEVICES:?Set one approved device index}"
+[[ "$CUDA_VISIBLE_DEVICES" =~ ^[0-9]+$ ]] || { printf 'Expose exactly one device index\n' >&2; exit 2; }
+: "${ALFWORLD_DATA:?Set the dataset root}"
+atod_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$atod_root"
+# Validate arguments without loading libraries or allocating a device.
+python - "$@" <<'PY'
+import sys
+for option in ['--model', '--game']:
+    if option not in [value.split('=')[0] for value in sys.argv[1:]]:
+        raise SystemExit('Required episode argument: ' + option)
+if any(value.split('=')[0] in {'--output-dir', '--enable-thinking', '--max-new-tokens', '--prepare-only'} for value in sys.argv[1:]):
+    raise SystemExit('Use the launcher arguments for thinking/token settings; output directories are generated automatically')
+PY
 export CUDA_DEVICE_ORDER=PCI_BUS_ID
-export OMP_NUM_THREADS=4 OPENBLAS_NUM_THREADS=4 MKL_NUM_THREADS=4
+export OMP_NUM_THREADS="${OMP_NUM_THREADS:-4}" OPENBLAS_NUM_THREADS="${OPENBLAS_NUM_THREADS:-4}" MKL_NUM_THREADS="${MKL_NUM_THREADS:-4}"
 export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 WANDB_MODE=disabled
 stamp=$(TZ=Asia/Shanghai date +%Y%m%d_%H%M%S_%N)
-run_dir="/mnt/data/home/zzr/ATOD/outputs/${stamp}_alfworld_teacher_${model_slug}_greedy_seed0_thinking_${enable_thinking}_tokens${max_new_tokens}"
-mkdir -p "$run_dir"
-mkdir -p "$run_dir/source_snapshot"
+run_dir="${ATOD_OUTPUT_ROOT:-$atod_root/outputs}/${stamp}_alfworld_teacher_seed0_thinking_${enable_thinking}_tokens${max_new_tokens}"
+mkdir -p "$(dirname -- "$run_dir")"
+mkdir "$run_dir"
+mkdir "$run_dir/source_snapshot"
 cp scripts/run_alfworld_teacher_episode.py scripts/run_alfworld_teacher_smoke.sh "$run_dir/source_snapshot/"
 printf '%s\n' "$$" > "$run_dir/launcher.pid"
 printf 'Output and log: %s\n' "$run_dir"
-/usr/local/PPU_SDK/ppu-smi/bin/ppu-smi > "$run_dir/ppu_before.log"
-if timeout --signal=TERM 20m python -u scripts/run_alfworld_teacher_episode.py \
+if [[ -n "${ATOD_DEVICE_SMI:-}" ]]; then "$ATOD_DEVICE_SMI" > "$run_dir/device_before.log"; fi
+if timeout --signal=TERM "${ATOD_RUN_TIMEOUT:-20m}" python -u scripts/run_alfworld_teacher_episode.py \
   --seed 0 --max-steps 12 --max-new-tokens "$max_new_tokens" --max-input-tokens 2048 \
-  --enable-thinking "$enable_thinking" \
-  "${model_args[@]}" \
-  --output-dir "$run_dir" > "$run_dir/run.log" 2>&1; then
+  --enable-thinking "$enable_thinking" "$@" --output-dir "$run_dir" > "$run_dir/run.log" 2>&1; then
   run_status=0
 else
   run_status=$?
 fi
 printf '%s\n' "$run_status" > "$run_dir/exit_code.txt"
-/usr/local/PPU_SDK/ppu-smi/bin/ppu-smi > "$run_dir/ppu_after.log"
+if [[ -n "${ATOD_DEVICE_SMI:-}" ]]; then "$ATOD_DEVICE_SMI" > "$run_dir/device_after.log"; fi
 exit "$run_status"

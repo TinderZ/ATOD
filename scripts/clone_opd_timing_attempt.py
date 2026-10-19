@@ -4,27 +4,30 @@ from datetime import datetime
 import json
 from pathlib import Path
 import shutil
+import shlex
 from zoneinfo import ZoneInfo
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('previous', type=Path)
 parser.add_argument('--reason', required=True)
+parser.add_argument('--output-root', type=Path, help='New attempt parent directory; defaults to the previous attempt parent')
 args = parser.parse_args()
 root = Path(__file__).resolve().parents[1]
 previous = args.previous.resolve()
-assert previous.is_relative_to(root / 'outputs')
 plan = json.loads((previous / 'plan.json').read_text())
 attempt = int(plan.get('attempt_number', 2)) + 1
 name = datetime.now(ZoneInfo('Asia/Shanghai')).strftime('%Y%m%d_%H%M%S_%f')
-run = root / 'outputs' / f'{name}_vanilla_opd_timing_t32b_s06b_2ppu_4096_10updates_attempt{attempt:02d}'
+output_root = (args.output_root or previous.parent).resolve()
+output_root.mkdir(parents=True, exist_ok=True)
+run = output_root / f'{name}_vanilla_opd_timing_attempt{attempt:02d}'
 run.mkdir()
 for sub in ['inputs', 'source_before']:
-    shutil.copytree(previous / sub, run / sub)
+    if (previous / sub).is_dir():
+        shutil.copytree(previous / sub, run / sub)
 for sub in ['source_snapshot', 'checkpoints', 'rollouts', 'runtime']:
     (run / sub).mkdir()
 shutil.copy2(previous / 'cpu_preflight.json', run / 'cpu_preflight.json')
 plan.update(previous_attempt=str(previous), previous_attempt_result=args.reason, attempt_number=attempt,
-            launch_command='bash /mnt/data/home/zzr/ATOD/scripts/run_vanilla_opd_timing.sh ' + str(run))
+            launch_command=shlex.join(['bash', str(root / 'scripts/run_vanilla_opd_timing.sh'), str(run)]))
 (run / 'plan.json').write_text(json.dumps(plan, indent=2))
-(root / 'configs/setup/active_opd_benchmark.txt').write_text(str(run) + '\n')
 print(run)

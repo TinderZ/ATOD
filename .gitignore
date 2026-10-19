@@ -148,3 +148,39 @@ agent_system/environments/env_package/**/*.py[cod]
 
 # Pointer to the latest local experiment; run state stays outside version control.
 /configs/setup/active_opd_benchmark.txt
+
+# Machine-specific setup, download recovery, and historical experiment records.
+/configs/setup/SETUP_NOTES.txt
+/configs/setup/alfworld_qwen3_32b_plan.json
+/configs/setup/alfworld_teacher_smoke_plan.json
+/configs/setup/alfworld_teacher_thinking_true_1024_plan.json
+/configs/setup/alfworld_teacher_thinking_true_plan.json
+/configs/setup/constraints-atod.txt
+/configs/setup/constraints-webshop.txt
+/configs/setup/qwen3_32b_mirror_equivalence.json
+/configs/setup/qwen3_32b_modelscope_remote_files.json
+/configs/setup/qwen3_32b_remote_files.json
+/configs/setup/requirements-atod.txt
+/configs/setup/requirements-retriever.txt
+/configs/setup/requirements-webshop-training.txt
+/configs/setup/requirements-webshop.txt
+/scripts/activate_atod.sh
+/scripts/cache_complete_setup_wheels.py
+/scripts/check_atod_setup.py
+/scripts/conda_mirror.py
+/scripts/download_atod_teachers.py
+/scripts/download_qwen3_32b.sh
+/scripts/download_webshop_nlp.py
+/scripts/fetch_ppu_wheels.py
+/scripts/finish_qwen3_32b_experiment.sh
+/scripts/finish_retriever_setup.sh
+/scripts/install_atod_runtime.sh
+/scripts/install_webshop_runtime.sh
+/scripts/prepare_cached_requirements.py
+/scripts/repair_setup_packages.py
+/scripts/resolve_setup.py
+/scripts/resume_qwen3_32b_download.py
+/scripts/resume_qwen3_32b_download.sh
+/scripts/setup_no_proxy.sh
+/scripts/smoke_alfworld_setup.py
+/scripts/verify_qwen3_32b.py

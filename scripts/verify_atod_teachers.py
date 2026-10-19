@@ -1,12 +1,26 @@
-"""Inspect downloaded teacher layouts and safetensors headers without a GPU."""
+"""Inspect the pinned teachers without a GPU.
+
+Usage: python scripts/verify_atod_teachers.py --root MODEL_ROOT [--output REPORT]
+MODEL_ROOT can also be supplied through ATOD_TEACHERS_ROOT. By default the
+report is printed to stdout; --output creates a new report without overwriting.
+"""
+import argparse
 import json
+import os
 from pathlib import Path
 import struct
 
-root = Path("/mnt/data/home/zzr/models/ATOD_ckpt")
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--root', type=Path, default=os.environ.get('ATOD_TEACHERS_ROOT'))
+parser.add_argument('--output', type=Path)
+args = parser.parse_args()
+if args.root is None:
+    parser.error('Pass --root or set ATOD_TEACHERS_ROOT')
+root = args.root.resolve()
+manifest = json.loads((Path(__file__).resolve().parents[1] / 'configs/setup/teachers.json').read_text())
 results = {}
-for task in ["alfworld", "webshop", "search"]:
-    folder = root / f"{task}_grpo_qwen3_4b/actor_hf"
+for task, relative in manifest['teachers'].items():
+    folder = root / relative
     shards = sorted(folder.glob("*.safetensors"))
     if len(shards) != 2:
         results[task] = {"complete": False}
@@ -29,6 +43,8 @@ for task in ["alfworld", "webshop", "search"]:
             dtypes.add(info["dtype"])
     assert set(mapping) == set(found)
     results[task] = {"complete": True, "path": str(folder), "architecture": config["architectures"], "tensor_count": len(found), "weight_dtypes": sorted(dtypes), "weight_bytes": sum(x.stat().st_size for x in shards)}
-output = Path(__file__).resolve().parents[1] / "logs/setup_20261016/teacher_layout_validation.json"
-output.write_text(json.dumps(results, indent=2))
+if args.output:
+    with args.output.open('x') as stream:
+        json.dump(results, stream, indent=2)
 print(json.dumps(results, indent=2))
+raise SystemExit(0 if all(result['complete'] for result in results.values()) else 1)

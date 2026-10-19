@@ -4,8 +4,6 @@ import json
 from pathlib import Path
 import re
 
-ROOT = Path(__file__).resolve().parents[1]
-BASELINE = ROOT / 'outputs/20261017_100746_408769649_alfworld_teacher_qwen3_4b_greedy_seed0_thinking_true_tokens1024'
 STRICT = re.compile(r'\s*<think>.*?</think>\s*<action>[^<>]*</action>\s*', re.DOTALL)
 TAGS = ['<think>', '</think>', '<action>', '</action>']
 
@@ -53,9 +51,10 @@ def analyze(path):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('run_dir', type=Path)
+    parser.add_argument('--baseline', type=Path, required=True, help='Reference experiment directory')
     args = parser.parse_args()
     configs, rows, summaries = [], [], []
-    for path in [BASELINE, args.run_dir]:
+    for path in [args.baseline, args.run_dir]:
         c, r, s = analyze(path)
         configs.append(c)
         rows.append(r)
@@ -65,12 +64,12 @@ def main():
             'do_sample', 'dtype', 'attention', 'reference_actions_used', 'CUDA_VISIBLE_DEVICES', 'enable_thinking']
     checks = {k: configs[0][k] == configs[1][k] for k in keys}
     assert all(checks.values())
-    prompt_equal = (BASELINE / 'initial_prompt.txt').read_bytes() == (args.run_dir / 'initial_prompt.txt').read_bytes()
+    prompt_equal = (args.baseline / 'initial_prompt.txt').read_bytes() == (args.run_dir / 'initial_prompt.txt').read_bytes()
     assert prompt_equal
     comparison = {'controlled_config_checks': checks, 'initial_rendered_prompt_identical': prompt_equal,
                   'runs': summaries,
                   'strict_protocol_definition': 'Exactly one think block followed by one action block, no other text except whitespace. Diagnostic only; original parser and execution unchanged.',
-                  'limitations': 'Official Qwen3-32B versus ALFWorld-GRPO Qwen3-4B: model scale and training differ; one train task with greedy decoding cannot establish general teacher quality. Official Qwen recommends sampling in thinking mode.'}
+                  'limitations': 'This comparison covers one training task with greedy decoding. Differences in model scale or training can confound teacher comparisons; it does not establish general teacher quality.'}
     with (args.run_dir / 'teacher_comparison.json').open('x') as f:
         json.dump(comparison, f, indent=2)
     text = []

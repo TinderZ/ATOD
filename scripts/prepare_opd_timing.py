@@ -1,4 +1,8 @@
-"""Create offline control rows; task observations come from ALFWorld at rollout."""
+"""Prepare an OPD run in ATOD_BENCHMARK_DIR using local model directories.
+
+Set ATOD_STUDENT_MODEL_PATH and ATOD_TEACHER_MODEL_PATH before running.
+Task observations come from ALFWorld at rollout, not the offline control rows.
+"""
 import json
 import os
 from pathlib import Path
@@ -10,7 +14,13 @@ from hydra import compose, initialize_config_dir
 from omegaconf import OmegaConf
 
 ROOT = Path(__file__).resolve().parents[1]
-RUN = Path(os.environ['ATOD_BENCHMARK_DIR'])
+os.environ['ATOD_PROJECT_ROOT'] = str(ROOT)
+RUN = Path(os.environ['ATOD_BENCHMARK_DIR']).resolve()
+RUN.mkdir(parents=True, exist_ok=True)
+(RUN / 'inputs').mkdir(exist_ok=True)
+# CPU preparation does not create a Ray session. Resolve its placeholder path
+# locally; the launcher replaces it with a fresh IPC directory before training.
+os.environ.setdefault('ATOD_RAY_IPC_DIR', str(RUN / 'runtime' / 'ray_ipc_placeholder'))
 for split in ['train', 'val']:
     rows = [{'data_source': 'text', 'prompt': [{'role': 'user', 'content': ''}], 'ability': 'agent',
              'extra_info': {'split': split, 'index': i}} for i in range(4)]
@@ -21,6 +31,7 @@ with initialize_config_dir(config_dir=str(ROOT / 'configs/experiments'), version
     config = compose(config_name='vanilla_opd_timing')
     OmegaConf.resolve(config)
 OmegaConf.save(config, RUN / 'resolved_config.yaml')
+assert config.trainer.n_gpus_per_node == config.ray_init.num_gpus
 tokenizer = AutoTokenizer.from_pretrained(config.actor_rollout_ref.model.path, local_files_only=True)
 teacher = AutoTokenizer.from_pretrained(config.actor_rollout_ref.ref.model.path, local_files_only=True)
 assert tokenizer.get_vocab() == teacher.get_vocab()
