@@ -1,0 +1,26 @@
+# Task runtime dependencies, based on WebShop's requirements.txt.
+# gym 0.26 retains the API used by this fork and builds with current pip.
+# The Gradio demo and unrelated env/train packages are not used by ATOD.
+beautifulsoup4==4.11.1
+cleantext==1.1.4
+Flask==2.1.2
+Werkzeug==2.1.0
+gdown
+gym==0.26.2
+numpy==1.26.4
+pandas==2.2.3
+pyserini==0.17.0
+pytest==8.3.5
+PyYAML==6.0.2
+rank_bm25==0.2.2
+requests>=2.32
+requests_mock
+rich>=12.4.4
+scikit_learn
+selenium==4.2.0
+# 3.7.5 keeps the 3.7 model format and permits the Typer required by FastAPI CLI.
+spacy==3.7.5
+thefuzz==0.19.0
+tqdm>=4.64.0
+faiss-cpu==1.8.0
+setuptools<81

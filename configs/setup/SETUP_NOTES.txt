@@ -1,0 +1,53 @@
+ATOD 本机安装说明（2026-10-16，配置与验证日志见 logs/setup_20261016）
+
+激活环境（同时设置本进程镜像、关闭代理并加载平台 PPU SDK）：
+source /mnt/data/home/zzr/ATOD/scripts/activate_atod.sh atod
+source /mnt/data/home/zzr/ATOD/scripts/activate_atod.sh atod-webshop
+source /mnt/data/home/zzr/ATOD/scripts/activate_atod.sh atod-retriever
+每次只选择其中一个。没有修改全局代理、pip/conda 配置或平台环境。
+
+环境目录：/mnt/data/home/zzr/conda_envs/
+atod：Python 3.12，PPU Torch 2.8.0、vLLM 0.11.0，用于 ALFWorld / Search 训练。
+atod-webshop：Python 3.10，PPU Torch 2.6.0、vLLM 0.8.5、OpenJDK 11、spaCy 3.7.5。
+atod-retriever：Python 3.12，PPU Torch 2.8.0、FAISS CPU 1.8.0，用于检索服务。
+FAISS 的索引搜索使用 CPU；启动 retrieval_server.py 时不要传 --faiss_gpu。
+原项目检索编码器仍调用 .cuda()，启动完整服务需要单独核实 PPU 运行兼容性及资源。
+安装使用平台 PPU 适配包，没有安装 NVIDIA 驱动或替换全局 CUDA。
+
+三个教师模型根目录：/mnt/data/home/zzr/models/ATOD_ckpt/
+alfworld_grpo_qwen3_4b/actor_hf
+webshop_grpo_qwen3_4b/actor_hf
+search_grpo_qwen3_4b/actor_hf
+来源及固定 revision 见本目录 teachers.json。
+下载完成状态及校验记录见 logs/setup_20261016/download_teachers_resume.log。
+
+ALFWorld 只读复用 /mnt/data/share/datasets/alfworld，激活脚本设置 ALFWORLD_DATA。
+本次只下载三个教师及环境依赖；未下载 WebShop 商品数据、Search Wikipedia 语料/索引、E5 编码器或学生模型。
+因此软件环境验证通过不代表这些数据已准备好，也不代表已跑过完整训练或评估。
+
+验证结果：logs/setup_20261016/{atod,webshop,retriever}_validation.json。
+冻结依赖：logs/setup_20261016/{atod,webshop,retriever}_freeze.txt。
+CPU ALFWorld 单游戏检查：logs/setup_20261016/alfworld_cpu_game.json。
+教师文件布局检查：logs/setup_20261016/teacher_layout_validation.json。
+安装阶段完成 CPU 检查；后续已在 2 号 PPU 上通过 Qwen3-4B 教师的 Transformers BF16 单任务推理。vLLM GPU、WebShop GPU 和检索 GPU 尚未验证。
+
+持久化缓存：/mnt/data/home/zzr/cache/{wheels,pip,huggingface}
+临时构建目录：/mnt/data/home/zzr/tmp/atod_setup
+Fast Downward 的本地构建只加入 -j4 并使用当前 Python，避免默认整机并发。
+源码校验及补丁记录：logs/setup_20261016/fastdownward_build.json。
+没有提交、推送或切换 Git 分支；新增的配置和安装/检查脚本保留为未提交文件。
+
+已核验的上游 wheel 元数据修复：Decord 0.6.0 的 WHEEL 标签与其文件名不一致；TextWorld 1.7.0 的 Tag 前存在多余空行。只修正元数据并同步 RECORD。
+Fast Downward 20.6.4 在 CPFS 上允许延迟清理已映射的临时共享库，避免 TemporaryDirectory 退出时报 ENOTEMPTY。
+修复脚本：scripts/repair_setup_packages.py；原文件备份和哈希：logs/setup_20261016/{atod,atod-webshop}_package_repairs.json。
+最终依赖检查：logs/setup_20261016/{atod,webshop}_pip_check.log；最终 ALFWorld 检查：logs/setup_20261016/alfworld_cpu_game_fixed.log。
+两套训练环境还安装了 acext 1.0.0+ppu2.0.0，激活脚本设置个人环境中的动态库和 LUT 路径，不向全局 SDK 复制文件。已验证 vllm._C 原生扩展导入。
+官方 acext 配置参考：https://help.aliyun.com/en/document_detail/3012072.html
+
+2026-10-16 单卡 ALFWorld 教师推理：/mnt/data/home/zzr/ATOD/outputs/20261016_201802_563741948_alfworld_teacher_qwen3_4b_greedy_seed0
+结果：4 步任务成功，奖励 10.0；动作均合法，生成部分 think 标签不完整，格式校验未通过。详见该目录 analysis.json 和 notes.txt。
+
+2026-10-17 官方 Qwen3-32B 教师对照：模型位于 /mnt/data/home/zzr/models/Qwen3-32B；HF revision 9216db5781bf21249d130ec9da846c4624c16137。
+HF mirror + 经授权的 ModelScope 同哈希权重续传；所有下载均直连无代理，27 文件/707 BF16 张量校验通过。
+2 号 PPU 上同任务 thinking=True/1024/greedy：9 轮成功，2337 tokens，原格式 9/9、严格格式 8/9，第5轮有标签外解释；无截断或 reasoning 标签，显存已释放。
+详细记录：/mnt/data/home/zzr/ATOD/outputs/20261017_161633_842032986_alfworld_teacher_qwen3_32b_greedy_seed0_thinking_true_tokens1024/notes.txt

@@ -142,3 +142,9 @@ agent_system/environments/env_package/webshop/webshop/data/
 agent_system/environments/env_package/webshop/webshop/**/chromedriver
 agent_system/environments/env_package/alfworld/alfworld/detectors/
 
+# CPU setup checks import bundled packages; their bytecode is generated locally.
+agent_system/environments/env_package/**/__pycache__/
+agent_system/environments/env_package/**/*.py[cod]
+
+# Pointer to the latest local experiment; run state stays outside version control.
+/configs/setup/active_opd_benchmark.txt

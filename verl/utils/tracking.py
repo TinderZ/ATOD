@@ -16,6 +16,9 @@ A unified tracking interface that supports logging data to different backend
 """
 
 import dataclasses
+import json
+import os
+import time
 from enum import Enum
 from functools import partial
 from pathlib import Path
@@ -125,6 +128,12 @@ class Tracking:
             self.logger["clearml"] = ClearMLLogger(project_name, experiment_name, config)
 
     def log(self, data, step, backend=None):
+        # Opt-in local, full-precision log for the OPD timing experiment.
+        benchmark_path = os.environ.get("ATOD_BENCHMARK_METRICS")
+        if benchmark_path:
+            with open(benchmark_path, "a") as stream:
+                stream.write(json.dumps({"step": step, "wall_time": time.time(), "metrics": data},
+                                        default=lambda value: value.tolist() if hasattr(value, "tolist") else str(value)) + "\n")
         for default_backend, logger_instance in self.logger.items():
             if backend is None or default_backend in backend:
                 logger_instance.log(data=data, step=step)

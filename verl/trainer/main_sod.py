@@ -10,6 +10,10 @@ When algorithm.sod.use_external_teacher=False, falls back to SDAR self-distillat
 """
 
 import hydra
+import json
+import os
+import time
+from pathlib import Path
 import ray
 from omegaconf import OmegaConf
 
@@ -39,6 +43,7 @@ def run_sod(config) -> None:
 @ray.remote(num_cpus=1)
 class SODTaskRunner:
     def run(self, config):
+        benchmark_started = time.time()
         from pprint import pprint
 
         from omegaconf import OmegaConf, open_dict
@@ -206,7 +211,16 @@ class SODTaskRunner:
             val_envs=val_envs,
             skill_provider=skill_provider,
         )
+        init_started = time.time()
         trainer.init_workers()
+        benchmark_dir = os.environ.get("ATOD_BENCHMARK_DIR")
+        if benchmark_dir:
+            (Path(benchmark_dir) / "initialization.json").write_text(json.dumps({
+                "controller_started": benchmark_started, "worker_init_started": init_started,
+                "worker_init_finished": time.time(),
+                "controller_preparation_seconds": init_started - benchmark_started,
+                "worker_initialization_seconds": time.time() - init_started,
+            }, indent=2))
         trainer.fit()
 
 

@@ -1,0 +1,10 @@
+{
+  "source": "https://hf-mirror.com/TanQT24/ATOD_ckpt",
+  "revision": "fd6a12024f8eed189757dc9d770994b051f2fe27",
+  "root": "/mnt/data/home/zzr/models/ATOD_ckpt",
+  "teachers": {
+    "alfworld": "alfworld_grpo_qwen3_4b/actor_hf",
+    "webshop": "webshop_grpo_qwen3_4b/actor_hf",
+    "search": "search_grpo_qwen3_4b/actor_hf"
+  }
+}

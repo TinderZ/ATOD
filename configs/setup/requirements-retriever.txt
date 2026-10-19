@@ -1,0 +1,11 @@
+# Python 3.12; PPU PyTorch is installed separately.
+numpy==1.26.4
+transformers==4.57.3
+huggingface-hub==0.35.3
+datasets==4.8.4
+pyarrow==23.0.1
+pandas==2.2.3
+uvicorn
+fastapi
+faiss-cpu==1.8.0
+setuptools<81

@@ -1,0 +1,62 @@
+{
+  "status": "completed_success_with_format_warning",
+  "prepared_beijing": "2026-10-16T20:06:55.099278+08:00",
+  "environment": "/mnt/data/home/zzr/conda_envs/atod",
+  "device": "PPU-ZW810E physical index 2; recheck availability before launch",
+  "gpu_count": 1,
+  "estimated_gpu_memory_gib": [
+    12,
+    20
+  ],
+  "cpu_threads": 4,
+  "estimated_host_memory_gib": [
+    12,
+    20
+  ],
+  "estimated_output_megabytes": 10,
+  "kernel_cache_may_add_gib": 1,
+  "estimated_minutes": [
+    5,
+    15
+  ],
+  "timeout_minutes": 20,
+  "timeout_action": "SIGTERM only to this experiment process group",
+  "episodes": 1,
+  "max_steps": 12,
+  "max_new_tokens_per_step": 512,
+  "max_input_tokens": 2048,
+  "sampling": "greedy",
+  "seed": 0,
+  "reference_actions_used": false,
+  "script": "/mnt/data/home/zzr/ATOD/scripts/run_alfworld_teacher_episode.py",
+  "launcher": "/mnt/data/home/zzr/ATOD/scripts/run_alfworld_teacher_smoke.sh",
+  "launch_command": "nohup bash /mnt/data/home/zzr/ATOD/scripts/run_alfworld_teacher_smoke.sh > /mnt/data/home/zzr/ATOD/logs/20261016_2003_teacher_smoke_launch.log 2>&1 < /dev/null",
+  "outputs": "/mnt/data/home/zzr/ATOD/outputs/<Beijing timestamp>_alfworld_teacher_qwen3_4b_greedy_seed0/",
+  "logs_and_pid": [
+    "run.log",
+    "launcher.pid",
+    "exit_code.txt",
+    "ppu_before.log",
+    "ppu_after.log"
+  ],
+  "cpu_preparation_result": "/mnt/data/home/zzr/ATOD/outputs/20261016_200307_467558854_alfworld_teacher_prepare_cpu/result.json",
+  "permission_rule": "/mnt/data/home/zzr/AGENTS.md:39",
+  "approved_beijing": "2026-10-16T20:18:02.757896+08:00",
+  "completed_beijing": "2026-10-16T20:21:27.719887+08:00",
+  "run_dir": "/mnt/data/home/zzr/ATOD/outputs/20261016_201802_563741948_alfworld_teacher_qwen3_4b_greedy_seed0",
+  "result": {
+    "pipeline_completed": true,
+    "task_success": true,
+    "done": true,
+    "steps": 4,
+    "atod_reward": 10.0,
+    "valid_action_rate": 0.0,
+    "generated_tokens": 380,
+    "elapsed_seconds": 21.40583248800249,
+    "peak_gpu_allocated_gib": 7.716878414154053,
+    "peak_gpu_reserved_gib": 7.822265625
+  },
+  "admissible_action_rate": 1.0,
+  "response_format_valid_rate": 0.0,
+  "gpu_released": true
+}

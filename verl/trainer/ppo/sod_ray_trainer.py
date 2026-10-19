@@ -16,6 +16,11 @@ When use_external_teacher=False:
 """
 
 from pprint import pprint
+from contextlib import contextmanager
+import json
+import math
+import os
+import time
 
 import numpy as np
 import ray
@@ -26,7 +31,7 @@ from verl import DataProto
 from verl.trainer.ppo.core_algos import agg_loss
 from verl.trainer.ppo.ray_trainer import (
     RayPPOTrainer,
-    _timer,
+    _timer as _base_timer,
     apply_invalid_action_penalty,
     apply_kl_penalty,
     compute_advantage,
@@ -45,6 +50,21 @@ from verl.trainer.ppo.metric_utils import (
 )
 
 from agent_system.multi_turn_rollout import adjust_batch
+
+
+@contextmanager
+def _timer(name, timing_raw):
+    """Original timer plus optional phase timestamps; no change to objectives."""
+    event_path = os.environ.get("ATOD_BENCHMARK_EVENTS")
+    started = time.time() if event_path else None
+    try:
+        with _base_timer(name, timing_raw):
+            yield
+    finally:
+        if event_path:
+            with open(event_path, "a") as stream:
+                stream.write(json.dumps({"phase": name, "step": int(os.environ.get("ATOD_BENCHMARK_STEP", "0")),
+                                         "started": started, "finished": time.time(), "pid": os.getpid()}) + "\n")
 
 
 class SODRayTrainer(RLSDRayTrainer):
@@ -139,6 +159,8 @@ class SODRayTrainer(RLSDRayTrainer):
 
         for epoch in range(self.config.trainer.total_epochs):
             for batch_dict in self.train_dataloader:
+                if os.environ.get("ATOD_BENCHMARK_METRICS"):
+                    os.environ["ATOD_BENCHMARK_STEP"] = str(self.global_steps)
                 metrics = {}
                 timing_raw = {}
                 batch: DataProto = DataProto.from_single_dict(batch_dict)
@@ -381,6 +403,11 @@ class SODRayTrainer(RLSDRayTrainer):
                 n_gpus = self.resource_pool_manager.get_n_gpus()
                 metrics.update(compute_throughout_metrics(batch=batch, timing_raw=timing_raw, n_gpus=n_gpus))
 
+                if os.environ.get("ATOD_BENCHMARK_METRICS"):
+                    metrics["benchmark/turn_rows"] = len(batch)
+                    metrics["benchmark/optimizer_steps_per_rank"] = math.ceil(
+                        len(batch) / self.config.actor_rollout_ref.actor.ppo_mini_batch_size
+                    ) * self.config.actor_rollout_ref.actor.ppo_epochs
                 logger.log(data=metrics, step=self.global_steps)
 
                 progress_bar.update(1)
