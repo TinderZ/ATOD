@@ -81,6 +81,10 @@ With these released teachers you can skip **Step 1 (teacher GRPO training)** bel
 
 ## 🛠️ Installation
 
+For the two-GPU **ALFWorld vanilla OPD** experiment (Qwen3-8B GRPO teacher,
+Qwen3-1.7B student, 512 tokens/turn, 150 updates), see
+[setup, launch, checkpoint resume and metrics-only W&B instructions](docs/vanilla_opd_alfworld.md).
+
 
 ### Python environment
 

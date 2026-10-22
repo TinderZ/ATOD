@@ -24,6 +24,26 @@ BACKEND = os.environ.get('ATOD_DEVICE_MONITOR', 'nvidia')
 SMI = os.environ.get('ATOD_DEVICE_SMI') or shutil.which('ppu-smi' if BACKEND == 'ppu' else 'nvidia-smi')
 
 
+def write_durable(path, contents):
+    temporary = path.with_name(f'{path.name}.{os.getpid()}.{time.time_ns()}.partial')
+    with temporary.open('x') as stream:
+        stream.write(contents)
+        stream.flush()
+        os.fsync(stream.fileno())
+    temporary.replace(path)
+
+
+def record_diagnostic(name, contents):
+    # A logging failure must not replace the original training exception.
+    try:
+        write_durable(RUN / name, contents)
+    except OSError as error:
+        try:
+            print(f'DIAGNOSTIC_WRITE_FAILED {name}: {error!r}', file=sys.stderr, flush=True)
+        except OSError:
+            pass
+
+
 def selected_devices():
     items = os.environ.get('CUDA_VISIBLE_DEVICES', '').split(',')
     assert all(item.isdecimal() for item in items), 'Set explicit numeric device indices'
@@ -49,8 +69,8 @@ def probe():
     for device in range(count):
         value = torch.ones((2, 2), device=f'cuda:{device}', dtype=torch.bfloat16)
         assert (value @ value).float().cpu().tolist() == [[2., 2.], [2., 2.]]
-    (RUN / 'gpu_preflight.json').write_text(json.dumps({'visible': os.environ['CUDA_VISIBLE_DEVICES'],
-                                                      'devices': count, 'bf16_arithmetic': 'passed'}))
+    write_durable(RUN / 'gpu_preflight.json', json.dumps({'visible': os.environ['CUDA_VISIBLE_DEVICES'],
+                                                        'devices': count, 'bf16_arithmetic': 'passed'}))
     print('Selected devices passed BF16 arithmetic.', flush=True)
 
 
@@ -95,7 +115,7 @@ def monitor(stop):
 def main():
     assert len(selected_devices()) == int(os.environ['ATOD_BENCHMARK_NUM_GPUS'])
     native = subprocess.check_output(device_command(), text=True, timeout=10)
-    (RUN / 'device_before.log').write_text(native)
+    write_durable(RUN / 'device_before.log', native)
     for row in device_rows(native):
         assert row['memory_used_mib'] < 512 and row['utilization_percent'] == 0, 'Selected device is occupied'
     # The short child exits before loading models, releasing its CUDA contexts.
@@ -145,7 +165,7 @@ def main():
         train()
     except BaseException as error:
         exit_code = error.code if isinstance(error, SystemExit) and isinstance(error.code, int) else 1
-        (RUN / 'error.txt').write_text(traceback.format_exc())
+        record_diagnostic('error.txt', traceback.format_exc())
         raise
     finally:
         try:
@@ -155,11 +175,11 @@ def main():
             stop.set()
             thread.join(timeout=15)
             try:
-                (RUN / 'device_after.log').write_text(subprocess.check_output(device_command(), text=True, timeout=10))
+                record_diagnostic('device_after.log', subprocess.check_output(device_command(), text=True, timeout=10))
             except Exception as error:
-                (RUN / 'device_after_error.txt').write_text(str(error))
-            (RUN / 'entry_status.json').write_text(json.dumps({'started': started, 'finished': time.time(),
-                                                              'exit_code': exit_code}, indent=2))
+                record_diagnostic('device_after_error.txt', str(error))
+            record_diagnostic('entry_status.json', json.dumps({'started': started, 'finished': time.time(),
+                                                               'exit_code': exit_code}, indent=2))
 
 
 if __name__ == '__main__':

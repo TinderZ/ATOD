@@ -52,6 +52,7 @@ print(tempfile.mkdtemp(prefix='atod_opd_', dir=os.environ.get('ATOD_RAY_IPC_ROOT
 PY
 )
 export ATOD_RAY_IPC_DIR
+export VLLM_RPC_BASE_PATH="$ATOD_RAY_IPC_DIR"
 printf '%s\n' "$$" > "$run_dir/launcher.pid"
 printf 'Experiment directory: %s\n' "$run_dir"
 python - "$run_dir" <<'PY'
@@ -62,7 +63,8 @@ from omegaconf import OmegaConf
 run=Path(sys.argv[1]); root=Path(os.environ['ATOD_PROJECT_ROOT'])
 files=['verl/utils/tracking.py','verl/trainer/main_sod.py','verl/trainer/ppo/sod_ray_trainer.py',
        'scripts/opd_timing_entry.py','scripts/opd_ray_dashboard_agent.py','scripts/run_vanilla_opd_timing.sh',
-       'configs/experiments/vanilla_opd_timing.yaml']
+       'configs/experiments/vanilla_opd_timing.yaml',
+       'verl/workers/actor/dp_actor.py','verl/utils/loss_normalization.py']
 for name in files:
     target=run/'source_snapshot'/name;target.parent.mkdir(parents=True,exist_ok=True)
     shutil.copy2(root/name,target)

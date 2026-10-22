@@ -33,6 +33,7 @@ from verl.trainer.ppo.core_algos import agg_loss, compute_policy_loss, compute_p
 from verl.utils.debug import GPUMemoryLogger
 from verl.utils.device import get_device_name, get_torch_device, is_cuda_available, is_npu_available
 from verl.utils.fsdp_utils import FSDPModule, fsdp2_clip_grad_norm_
+from verl.utils.loss_normalization import MiniBatchLossNormalizer
 from verl.utils.py_functional import append_to_dict
 from verl.utils.seqlen_balancing import get_reverse_idx, rearrange_micro_batches
 from verl.utils.torch_functional import logprobs_from_logits
@@ -334,9 +335,10 @@ class DataParallelPPOActor(BasePPOActor):
         # Split to make minibatch iterator for updating the actor
         # See PPO paper for details. https://arxiv.org/abs/1707.06347
         if has_multi_modal_inputs:
-            num_mini_batches = data.batch.batch_size[0] // self.config.ppo_mini_batch_size
             non_tensor_select_keys = ["multi_modal_inputs"]
-            dataloader = data.select(select_keys, non_tensor_select_keys).chunk(num_mini_batches)
+            selected = data.select(select_keys, non_tensor_select_keys)
+            dataloader = [selected[start : start + self.config.ppo_mini_batch_size]
+                          for start in range(0, len(selected), self.config.ppo_mini_batch_size)]
         else:
             dataloader = batch.split(self.config.ppo_mini_batch_size)
 
@@ -345,15 +347,19 @@ class DataParallelPPOActor(BasePPOActor):
             for batch_idx, data in enumerate(dataloader):
                 # split batch into micro_batches
                 mini_batch = data
+                mini_tensors = mini_batch.batch if isinstance(mini_batch, DataProto) else mini_batch
+                response_length = mini_tensors["responses"].size(1)
+                mask_key = "loss_mask" if multi_turn else "attention_mask"
+                normalizer = MiniBatchLossNormalizer(mini_tensors[mask_key][:, -response_length:])
+                mini_metrics = {}
                 if has_multi_modal_inputs:
-                    self.gradient_accumulation = self.config.ppo_mini_batch_size // self.config.ppo_micro_batch_size_per_gpu
-                    num_micro_batches = mini_batch.batch.batch_size[0] // self.config.ppo_micro_batch_size_per_gpu
-                    micro_batches = data.select(select_keys, non_tensor_select_keys).chunk(num_micro_batches)
+                    micro_size = self.config.ppo_micro_batch_size_per_gpu
+                    micro_batches = [mini_batch[start : start + micro_size]
+                                     for start in range(0, len(mini_batch), micro_size)]
                 elif self.config.use_dynamic_bsz:
                     max_token_len = self.config.ppo_max_token_len_per_gpu * self.ulysses_sequence_parallel_size
                     micro_batches, _ = rearrange_micro_batches(batch=mini_batch, max_token_len=max_token_len)
                 else:
-                    self.gradient_accumulation = self.config.ppo_mini_batch_size // self.config.ppo_micro_batch_size_per_gpu
                     # split batch into micro_batches
                     micro_batches = mini_batch.split(self.config.ppo_micro_batch_size_per_gpu)
 
@@ -410,22 +416,24 @@ class DataParallelPPOActor(BasePPOActor):
                     )
 
                     pg_loss_coef = self.config.get("pg_loss_coef", 1.0)
+                    # GSPO reduces by sequence regardless of loss_agg_mode;
+                    # entropy and auxiliary losses retain their own reducer.
+                    pg_mode = "seq-mean-token-mean" if loss_mode == "gspo" else loss_agg_mode
+                    pg_contribution = normalizer(pg_loss, response_mask, pg_mode)
+                    policy_loss = pg_contribution * pg_loss_coef
                     if entropy_coeff != 0:
                         entropy_loss = agg_loss(loss_mat=entropy, loss_mask=response_mask, loss_agg_mode=loss_agg_mode)
-
-                        # compute policy loss
-                        policy_loss = pg_loss * pg_loss_coef - entropy_loss * entropy_coeff
-                    else:
-                        policy_loss = pg_loss * pg_loss_coef
+                        policy_loss = policy_loss - normalizer(entropy_loss, response_mask, loss_agg_mode) * entropy_coeff
 
                     if self.config.use_kl_loss:
                         ref_log_prob = data["ref_log_prob"]
                         # compute kl loss
                         kld = kl_penalty(logprob=log_prob, ref_logprob=ref_log_prob, kl_penalty=self.config.kl_loss_type)
                         kl_loss = agg_loss(loss_mat=kld, loss_mask=response_mask, loss_agg_mode=loss_agg_mode)
+                        kl_loss = normalizer(kl_loss, response_mask, loss_agg_mode)
 
                         policy_loss = policy_loss + kl_loss * self.config.kl_loss_coef
-                        metrics["actor/kl_loss"] = kl_loss.detach().item()
+                        mini_metrics["actor/kl_loss"] = mini_metrics.get("actor/kl_loss", 0.) + kl_loss.detach()
                         metrics["actor/kl_coef"] = self.config.kl_loss_coef
 
                     if self.config.get("use_sdl_loss", False):
@@ -438,9 +446,10 @@ class DataParallelPPOActor(BasePPOActor):
                             response_mask=response_mask,
                             loss_agg_mode=loss_agg_mode,
                         )
+                        sdl_loss = normalizer(sdl_loss, response_mask, loss_agg_mode)
                         sdl_coef = self.config.get("sdl_loss_coef", 0.1)
                         policy_loss = policy_loss + sdl_loss * sdl_coef
-                        metrics["actor/sdl_loss"] = sdl_loss.detach().item()
+                        mini_metrics["actor/sdl_loss"] = mini_metrics.get("actor/sdl_loss", 0.) + sdl_loss.detach()
                         metrics["actor/sdl_coef"] = sdl_coef
 
                     if self.config.get("use_sdar_loss", False):
@@ -453,27 +462,25 @@ class DataParallelPPOActor(BasePPOActor):
                             gate_beta=self.config.get("sdar_gate_beta", 5.0),
                             loss_agg_mode=loss_agg_mode,
                         )
+                        sdar_loss = normalizer(sdar_loss, response_mask, loss_agg_mode)
                         sdar_coef = self.config.get("sdar_loss_coef", 0.1)
                         policy_loss = policy_loss + sdar_loss * sdar_coef
+                        sdar_metrics.pop("sdar/loss", None)
+                        mini_metrics["sdar/loss"] = mini_metrics.get("sdar/loss", 0.) + sdar_loss.detach()
                         metrics.update(sdar_metrics)
                         metrics["sdar/coef"] = sdar_coef
 
+                    policy_loss.backward()
 
-                    if self.config.use_dynamic_bsz:
-                        # relative to the dynamic bsz
-                        loss = policy_loss * (len(data) / self.config.ppo_mini_batch_size)
-                    else:
-                        loss = policy_loss / self.gradient_accumulation
-                    loss.backward()
+                    # Sum contributions per optimizer step. The trainer's rank
+                    # average then reports the same global reduction as loss.
+                    mini_metrics["actor/pg_loss"] = mini_metrics.get("actor/pg_loss", 0.) + pg_contribution.detach()
+                    for key, value in (("actor/pg_clipfrac", pg_clipfrac), ("actor/ppo_kl", ppo_kl),
+                                       ("actor/pg_clipfrac_lower", pg_clipfrac_lower)):
+                        contribution = normalizer(value.detach(), response_mask, "token-mean")
+                        mini_metrics[key] = mini_metrics.get(key, 0.) + contribution
 
-                    data = {
-                        "actor/pg_loss": pg_loss.detach().item(),
-                        "actor/pg_clipfrac": pg_clipfrac.detach().item(),
-                        "actor/ppo_kl": ppo_kl.detach().item(),
-                        "actor/pg_clipfrac_lower": pg_clipfrac_lower.detach().item(),
-                    }
-                    append_to_dict(metrics, data)
-
+                append_to_dict(metrics, {key: value.item() for key, value in mini_metrics.items()})
                 grad_norm = self._optimizer_step()
                 data = {"actor/grad_norm": grad_norm.detach().item()}
                 append_to_dict(metrics, data)
